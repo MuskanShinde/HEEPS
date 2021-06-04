@@ -1,15 +1,33 @@
+import heeps
+from heeps.optics import lyot_stop, lens
+from heeps.pupil import pupil
+from heeps.wavefront.add_errors import add_errors
 import proper
-from heeps.optics.lens import lens
 from astropy.io import fits
 import os
 import numpy as np
 
-def detector(wf, ngrid=1024, ndet=365, dir_output='output_files', savefits=False, verbose=False, **conf):
+def detector(wf, phase_screen=None, amp_screen=None, tiptilt=None, misalign=[0,0,0,0,0,0], 
+    ngrid=1024, ndet=365, onaxis=False, dir_output='output_files', savefits=False, 
+    verbose=False, **conf):
     
     assert(ngrid >= ndet), 'Error: final image is bigger than initial grid size'
-
+    
     # propagate to detector
     lens(wf, **conf)
+    
+    # add chromatic leakage
+    if conf['add_det_chrom_leak'] is True and onaxis == True:
+        if verbose == True:
+            print('   Add chromatic leakage in detector plane')
+        wf_cl = pupil(savefits=False, verbose=False, **conf)
+        wf_cl = add_errors(wf_cl, phase_screen=phase_screen, amp_screen=amp_screen, \
+                tiptilt=tiptilt, misalign=misalign, **conf)
+        wf_cl = lyot_stop(wf_cl, verbose=False, **conf)
+        lens(wf_cl, **conf)
+        proper.prop_multiply(wf_cl, np.sqrt(conf['vc_chrom_leak']))
+        wf._wfarr += np.transpose(wf_cl._wfarr)
+        
     # get intensity (A^2)
     (psf, _) = proper.prop_end(wf, NOABS = False)
     # crop to detector size

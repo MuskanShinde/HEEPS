@@ -6,11 +6,18 @@ import numpy as np
 from heeps.util.img_processing import resize_img, pad_img
 from astropy.io import fits
 import proper
+from copy import deepcopy
 
-def fp_mask(wf, mode='RAVC', vc_zoffset=0, verbose=False, **conf):
+def fp_mask(wf, mode='RAVC', vc_zoffset=0, add_chrom_leak=None, verbose=False, **conf):
 
     # case 1: vortex coronagraphs
     if mode in ['CVC', 'RAVC']:
+        
+        # load chromtic leakage
+        if conf['add_vort_chrom_leak'] is True:
+            wf_cl= deepcopy(wf)
+            proper.prop_multiply(wf_cl, np.sqrt(conf['vc_chrom_leak']))
+        
         if verbose is True:
             print('   apply vortex phase mask')                        
         # load vortex calibration files: psf_num, vvc, perf_num
@@ -23,6 +30,13 @@ def fp_mask(wf, mode='RAVC', vc_zoffset=0, verbose=False, **conf):
         wf._wfarr = wf._wfarr*conf['vvc'] - wf_corr
         # propagate to lyot stop
         lens(wf, offset_before=-vc_zoffset, **conf)
+        
+        # add chromtic leakage
+        if conf['add_vort_chrom_leak'] is True:
+            if verbose is True:
+                print('   Add chromatic leakage in vortex plane')
+            wf._wfarr += np.transpose(wf_cl._wfarr)
+            
     
     # case 2: classical Lyot
     elif mode in ['CLC']:
