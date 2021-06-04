@@ -8,7 +8,7 @@ from sys import platform
 import numpy as np
 import time
 
-def propagate_cube(wf, phase_screens, amp_screens, tiptilts, misaligns,
+def propagate_cube(wf, phase_screens, amp_screens, tiptilts, misaligns, 
         cpu_count=1, send_to=None, tag=None, onaxis=True, savefits=False, 
         verbose=False, **conf):
 
@@ -49,7 +49,7 @@ def propagate_cube(wf, phase_screens, amp_screens, tiptilts, misaligns,
         for i, (phase_screen, amp_screen, tiptilt, misalign) \
                 in enumerate(zip(phase_screens, amp_screens, tiptilts, misaligns)):
             psf = propagate_one(wf, phase_screen, amp_screen, tiptilt, misalign, \
-                onaxis=onaxis, verbose=False, **conf)
+                onaxis=onaxis, verbose=True, **conf)
             psfs = psf if i == 0 else np.dstack((psfs.T, psf.T)).T
     if verbose is True:
         print('   %s: finished, elapsed %.3f seconds'\

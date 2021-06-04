@@ -1,4 +1,5 @@
 from heeps.optics import apodizer, fp_mask, lyot_stop, detector
+from heeps.wavefront.add_errors import add_errors
 from heeps.util.img_processing import pad_img
 from heeps.util.save2fits import save2fits
 from copy import deepcopy
@@ -22,34 +23,17 @@ def propagate_one(wf, phase_screen=None, amp_screen=None, tiptilt=None, misalign
     wf1 = deepcopy(wf)
 
     # apply phase screen (scao residuals, ncpa, petal piston)
-    if phase_screen is not None:
-        assert phase_screen.ndim == 2, "phase_screen dim must be 2."
-        proper.prop_add_phase(wf1, pad_img(phase_screen, ngrid))
-
-    # apply amplitude screen (Talbot effect)
-    if amp_screen is not None:
-        assert amp_screen.ndim == 2, "amp_screen dim must be 2."
-        proper.prop_multiply(wf1, pad_img(amp_screen, ngrid))
-
-    # apply tip-tilt (Zernike 2,3)
-    if tiptilt is not None:
-        proper.prop_zernikes(wf1, [2,3], np.array(tiptilt, ndmin=1))
+    wf1 = add_errors(wf1, phase_screen=phase_screen, amp_screen=amp_screen, tiptilt=tiptilt, misalign=misalign, **conf)
     
     if verbose == True:
         print('Create single %s-axis PSF'%{True:'on',False:'off'}[onaxis])
-
-    # pupil-plane apodization: if RA misalign set to None (or APP cube calc),
-    # then apodizer was already preloaded
-    if misalign is not None or ('APP' in conf['mode'] and onaxis == False):
-        conf.update(ravc_misalign=misalign)
-        wf1 = apodizer(wf1, onaxis=onaxis, verbose=verbose, **conf)
 
     # imaging a point source
     def point_source(wfo, verbose, conf):
         if onaxis == True: # focal-plane mask, only in 'on-axis' configuration
             wfo = fp_mask(wfo, verbose=verbose, **conf)
         wfo = lyot_stop(wfo, verbose=verbose, **conf)
-        return detector(wfo, verbose=verbose, **conf)
+        return detector.detector(wfo, onaxis=onaxis, verbose=verbose, **conf)
     if fp_offsets is None:
         psf = point_source(wf1, verbose, conf)
     
